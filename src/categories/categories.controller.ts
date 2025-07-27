@@ -172,7 +172,7 @@ export class CategoriesController {
   })
   @ApiResponse({
     status: HttpStatus.CONFLICT,
-    description: 'Cannot delete category with products',
+    description: 'Cannot delete category which has products',
     type: ConflictErrorResponseDto,
   })
   @ApiResponse({
