@@ -365,50 +365,90 @@ OrderItem {
 - **Order ↔ Products**: Many-to-many through OrderItems
 - **User → ApiKeys/Tokens**: One-to-many relationships
 
-## 🚀 Project Setup
+## 🚀 Deployment Architecture
 
-### Prerequisites
+### Station2290 Microservices Architecture
+
+This API is part of the Station2290 coffee shop management system, which follows a microservices architecture:
+
+- **Infrastructure Repository**: [Station2290-Infrastructure](https://github.com/Station-2290/infrastructure)
+- **API Repository**: [Station2290-API](https://github.com/Station-2290/api) (this repository)
+- **Web Application**: [Station2290-Web](https://github.com/Station-2290/web) 
+- **WhatsApp Bot**: [Station2290-Bot](https://github.com/Station-2290/bot)
+- **Admin Panel**: [Station2290-Adminka](https://github.com/Station-2290/adminka)
+- **Order Panel**: [Station2290-Order-Panel](https://github.com/Station-2290/order-panel)
+
+### 🔄 Automatic Deployment
+
+This API **deploys automatically** when you push to the `main` branch:
+
+1. **GitHub Actions** builds a Docker image
+2. **Pushes** to GitHub Container Registry (`ghcr.io`)
+3. **Deploys** directly to production VPS via SSH
+4. **Health checks** ensure successful deployment
+5. **Rollback** on failure to maintain uptime
+
+**Production URL**: https://api.station2290.ru
+
+### 📋 Prerequisites
+
+**For Local Development:**
 - Node.js (v18+ recommended)
 - pnpm (package manager)
-- SQLite (for database)
+- PostgreSQL (production) or SQLite (development)
 
-### Installation
+**For Production Deployment:**
+- Infrastructure repository deployed on VPS
+- GitHub Secrets configured for automated deployment
 
-1. **Clone the repository**
+## 🛠️ Local Development Setup
+
+### 1. Clone Repository
 ```bash
-git clone <repository-url>
-cd coffee-shop-api/api
+git clone https://github.com/Station-2290/api.git
+cd api
 ```
 
-2. **Install dependencies**
+### 2. Install Dependencies
 ```bash
 pnpm install
 ```
 
-3. **Environment setup**
+### 3. Environment Configuration
 ```bash
 cp .env.example .env
-# Edit .env with your configuration
+# Edit .env with your local configuration
 ```
 
-4. **Database setup**
+### 4. Database Setup
 ```bash
 # Generate Prisma client
 pnpm exec prisma generate
 
-# Run database migrations
+# For development (SQLite)
 pnpm exec prisma db push
 
-# (Optional) Seed database
+# For production (PostgreSQL - handled by infrastructure)
+pnpm exec prisma migrate deploy
+
+# (Optional) Seed development database
 pnpm exec prisma db seed
 ```
 
+### 5. Start Development Server
+```bash
+pnpm run start:dev
+```
+
+**Local API**: http://localhost:3000  
+**API Documentation**: http://localhost:3000/docs
+
 ## ⚙️ Environment Configuration
 
-### Required Environment Variables
+### Local Development Environment
 
 ```bash
-# Database Configuration
+# Database Configuration (SQLite for development)
 DATABASE_URL="file:./dev.db"
 
 # JWT Configuration
@@ -426,6 +466,33 @@ NODE_ENV=development
 # Optional: OpenAPI Export
 EXPORT_OPENAPI=true
 ```
+
+### Production Environment
+
+Production environment variables are managed by the infrastructure repository and injected during deployment:
+
+```bash
+# Production Database (PostgreSQL)
+DATABASE_URL=postgresql://station2290_user:${POSTGRES_PASSWORD}@postgres:5432/station2290
+
+# Production JWT Configuration
+JWT_SECRET=${JWT_SECRET}
+JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+
+# Production Application Configuration
+NODE_ENV=production
+PORT=3000
+
+# CORS Configuration
+CORS_ORIGIN=${CORS_ORIGIN}
+
+# Additional Production Settings
+API_RATE_LIMIT=${API_RATE_LIMIT}
+UPLOAD_MAX_SIZE=${UPLOAD_MAX_SIZE}
+LOG_LEVEL=${LOG_LEVEL}
+```
+
+**Note**: Production secrets are managed through GitHub Secrets and the infrastructure repository's environment configuration.
 
 ### Configuration Files
 - `src/config/app.config.ts`: Application settings (port, environment)
