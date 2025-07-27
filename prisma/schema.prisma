@@ -1,0 +1,218 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Categories for organizing products
+model Category {
+  id            Int       @id @default(autoincrement())
+  name          String    @unique
+  description   String?
+  slug          String    @unique
+  is_active     Boolean   @default(true) @map("is_active")
+  display_order Int       @default(0) @map("display_order")
+  
+  products      Product[]
+  
+  created_at    DateTime  @default(now()) @map("created_at")
+  updated_at    DateTime  @updatedAt @map("updated_at")
+  
+  @@map("categories")
+}
+
+// Products including coffee, desserts, and other items
+model Product {
+  id           Int       @id @default(autoincrement())
+  name         String
+  description  String
+  price        Float     // SQLite doesn't support Decimal
+  is_active    Boolean   @default(true) @map("is_active")
+  volume_ml    Int?      @map("volume_ml") // Optional for non-beverage items
+  is_promoted  Boolean   @default(false) @map("is_promoted")
+  sku          String    @unique
+  stock        Int       @default(0)
+  image_url    String?   @map("image_url")
+  
+  category_id  Int       @map("category_id")
+  category     Category  @relation(fields: [category_id], references: [id])
+  
+  order_items  OrderItem[]
+  
+  created_at   DateTime  @default(now()) @map("created_at")
+  updated_at   DateTime  @updatedAt @map("updated_at")
+  
+  @@index([category_id])
+  @@index([sku])
+  @@map("products")
+}
+
+// Customer information
+model Customer {
+  id          Int       @id @default(autoincrement())
+  email       String    @unique
+  first_name  String    @map("first_name")
+  last_name   String    @map("last_name")
+  phone       String?
+  
+  orders      Order[]
+  user        User?
+  
+  created_at  DateTime  @default(now()) @map("created_at")
+  updated_at  DateTime  @updatedAt @map("updated_at")
+  
+  @@index([email])
+  @@map("customers")
+}
+
+// Order status enum
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  READY
+  COMPLETED
+  CANCELLED
+}
+
+// Orders
+model Order {
+  id            Int         @id @default(autoincrement())
+  order_number  String      @unique @map("order_number") // Will generate manually in the service
+  status        OrderStatus @default(PENDING)
+  total_amount  Float       @map("total_amount") // SQLite doesn't support Decimal
+  notes         String?
+  
+  customer_id   Int?        @map("customer_id")
+  customer      Customer?   @relation(fields: [customer_id], references: [id])
+  
+  items         OrderItem[]
+  
+  created_at    DateTime    @default(now()) @map("created_at")
+  updated_at    DateTime    @updatedAt @map("updated_at")
+  
+  @@index([customer_id])
+  @@index([order_number])
+  @@index([status])
+  @@map("orders")
+}
+
+// Order items (many-to-many relationship between Order and Product)
+model OrderItem {
+  id          Int       @id @default(autoincrement())
+  quantity    Int
+  unit_price  Float     @map("unit_price") // SQLite doesn't support Decimal
+  subtotal    Float     // SQLite doesn't support Decimal
+  
+  order_id    Int       @map("order_id")
+  order       Order     @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  
+  product_id  Int       @map("product_id")
+  product     Product   @relation(fields: [product_id], references: [id])
+  
+  created_at  DateTime  @default(now()) @map("created_at")
+  updated_at  DateTime  @updatedAt @map("updated_at")
+  
+  @@unique([order_id, product_id])
+  @@index([order_id])
+  @@index([product_id])
+  @@map("order_items")
+}
+
+// Role enum for RBAC
+enum Role {
+  ADMIN
+  MANAGER
+  EMPLOYEE
+  CUSTOMER
+}
+
+// User model for authentication
+model User {
+  id                Int       @id @default(autoincrement())
+  email             String    @unique
+  username          String    @unique
+  password_hash     String    @map("password_hash")
+  role              Role      @default(CUSTOMER)
+  is_active         Boolean   @default(true) @map("is_active")
+  
+  // Optional customer relationship
+  customer_id       Int?      @unique @map("customer_id")
+  customer          Customer? @relation(fields: [customer_id], references: [id])
+  
+  // API keys for this user
+  api_keys          ApiKey[]
+  
+  // Refresh tokens for this user
+  refresh_tokens    RefreshToken[]
+  
+  // Blacklisted tokens for this user
+  blacklisted_tokens BlacklistedToken[]
+  
+  created_at        DateTime  @default(now()) @map("created_at")
+  updated_at        DateTime  @updatedAt @map("updated_at")
+  
+  @@index([email])
+  @@index([username])
+  @@map("users")
+}
+
+// API Key model for API key authentication
+model ApiKey {
+  id          Int       @id @default(autoincrement())
+  key         String    @unique
+  name        String
+  is_active   Boolean   @default(true) @map("is_active")
+  expires_at  DateTime? @map("expires_at")
+  
+  user_id     Int       @map("user_id")
+  user        User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  
+  last_used_at DateTime? @map("last_used_at")
+  created_at  DateTime  @default(now()) @map("created_at")
+  updated_at  DateTime  @updatedAt @map("updated_at")
+  
+  @@index([key])
+  @@index([user_id])
+  @@map("api_keys")
+}
+
+// Refresh token model for JWT token rotation
+model RefreshToken {
+  id          Int       @id @default(autoincrement())
+  token       String    @unique
+  expires_at  DateTime  @map("expires_at")
+  is_revoked  Boolean   @default(false) @map("is_revoked")
+  
+  user_id     Int       @map("user_id")
+  user        User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  
+  created_at  DateTime  @default(now()) @map("created_at")
+  updated_at  DateTime  @updatedAt @map("updated_at")
+  
+  @@index([token])
+  @@index([user_id])
+  @@map("refresh_tokens")
+}
+
+// Blacklisted JWT tokens
+model BlacklistedToken {
+  id          Int       @id @default(autoincrement())
+  jti         String    @unique // JWT ID
+  expires_at  DateTime  @map("expires_at")
+  
+  user_id     Int       @map("user_id")
+  user        User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  
+  created_at  DateTime  @default(now()) @map("created_at")
+  
+  @@index([jti])
+  @@index([user_id])
+  @@map("blacklisted_tokens")
+}
