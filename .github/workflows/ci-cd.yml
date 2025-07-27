@@ -174,7 +174,7 @@ jobs:
               -e JWT_SECRET="${{ secrets.JWT_SECRET }}" \
               -e JWT_REFRESH_SECRET="${{ secrets.JWT_REFRESH_SECRET }}" \
               -v api_data:/app/data \
-              --health-cmd="wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1" \
+              --health-cmd="wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1" \
               --health-interval=30s \
               --health-timeout=10s \
               --health-retries=3 \
